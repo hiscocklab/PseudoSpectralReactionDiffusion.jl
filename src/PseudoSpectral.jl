@@ -15,6 +15,7 @@ using FFTW: plan_r2r!, REDFT00, MEASURE, ScaledPlan
 using Symbolics: variable, @variables, Num, sparsejacobian, build_function, substitute, get_variables
 using Random: default_rng, AbstractRNG
 
+"Spatial variable x∈[0,1]."
 const x = variable(:x) |> Num
 
  # BC is Nothing for homogeneous for BC or Function for Heterogeneous BC.
@@ -32,6 +33,14 @@ const x = variable(:x) |> Num
     rng::AbstractRNG
 end
 
+"""
+    PseudoSpectralSolution
+Solution object for PsuedoSpectralProblem.
+
+# Indexing
+- By time-step `sol[3]`.
+- By species `sol[U]`.
+"""
 struct PseudoSpectralSolution
     species::Vector{Num}
     u::Vector{Matrix{Float64}}
@@ -46,14 +55,26 @@ struct Parameters
     d :: Vector{Float64} # Diffusion parameters.
     ϕ :: Matrix{Float64} # Boundary lifting function
     Δϕ :: Matrix{Float64}
-    attempt :: Int64 # Track number of attempts at solution. TODO: remove this.
 end
 
 
 """
-Construct a SplitODEProblem to solve a reaction diffusion system with reflective boundaries.
+    PseudoSpectralProblem(species, reaction_rates, diffusion_rates, boundary_conditions, initial_conditions, num_verts; p=nothing, noise=1e-4, rng=default_rng(), kwargs...)
+Construct a PsuedoSpectralProblem object representing a reaction diffusion system of the form uₓₓ(x,t) = Duₜ(x,t) + f(u(x,t)).
 
-Returns the SplitODEProblem with solutions in the frequency (DCT-1) domain and a FFTW plan to transform solutions back to the spatial domain.
+# Arguments
+PseudoSpectral expects Symbolics.jl expressions as inputs. The special variable 'x' ∈ [0,1] represents the spatial coordinate. Any variables other than 'x' and those supplied in `species` will be interpreted as parameters.
+
+- `species`: Vector of variables corresponding to the components of u.
+- `reaction_rates`: Vector of expressions representing f(u).
+- `diffusion_rates`: Vector of Expressions representing diag(D).
+- `boundary_conditions`: 2xn matrix of expressions representing Neumann boundary conditions. The two rows correspond to uₓ at the left and right boundaries.
+- `initial_conditions`: Vector of expressions representing u(x,0).
+- `num_verts`: Number of points in spatial discretisation.
+- `p=nothing`: Dictionary associating parameters with numerical values.
+- `noise=1e-4`: Guassian noise with σ²=`noise` is added to the initial conditions.
+- `rng=default_rng()`: Random number generator for noise.
+- `kwargs...`: Keyword arguments passed on to SciML's `solve`. For details see https://docs.sciml.ai/DiffEqDocs/stable/basics/common_solver_opts/.
 """
 function PseudoSpectralProblem(species, reaction_rates, diffusion_rates, boundary_conditions, initial_conditions, num_verts; p=nothing, noise=1e-4, rng=default_rng(), kwargs...)
     n = num_verts
@@ -76,8 +97,12 @@ function PseudoSpectralProblem(species, reaction_rates, diffusion_rates, boundar
     remake(prob; p)
 end
 
+"""
+    remake(prob::PseudoSpectralProblem; p=nothing, rng=nothing, kwargs...)
 
-function remake(prob::PseudoSpectralProblem; p=nothing, rng=nothing, attempt=1, kwargs...)
+Return a new problem with updated parameters, random number generator, and/or solver options.
+"""
+function remake(prob::PseudoSpectralProblem; p=nothing, rng=nothing, kwargs...)
     if isnothing(p)
         prob.ode_problem = remake(prob.ode_problem; kwargs...)
         return prob
@@ -99,7 +124,7 @@ function remake(prob::PseudoSpectralProblem; p=nothing, rng=nothing, attempt=1, 
     else
         ϕ = Δϕ = Matrix{Float64}(undef,0,0)
     end
-    p = Parameters(w,r,d,ϕ,Δϕ,attempt)
+    p = Parameters(w,r,d,ϕ,Δϕ)
     prob.plan * u0
     u0 = vec(u0)
     update_coefficients!(prob.ode_problem.f.f1.f, nothing, p, nothing) # Set parameter values in diffusion operator.
@@ -107,8 +132,13 @@ function remake(prob::PseudoSpectralProblem; p=nothing, rng=nothing, attempt=1, 
     prob
 end
 
+"""
+    solve(prob::PseudoSpectralProblem, alg=ETDRK4(); kwargs...)
 
-function solve(prob::PseudoSpectralProblem, alg; kwargs...)
+See https://docs.sciml.ai/DiffEqDocs/stable/basics/common_solver_opts/.
+Algorithm defaults to [ETDRK4](https://docs.sciml.ai/DiffEqDocs/stable/api/ordinarydiffeq/semilinear/ExponentialRK/#OrdinaryDiffEqExponentialRK.ETDRK4).
+"""
+function solve(prob::PseudoSpectralProblem, alg=ETDRK4(); kwargs...)
     odesol = SciMLBase.solve(prob.ode_problem, alg; kwargs...)
     PseudoSpectralSolution(prob, odesol)
 end
@@ -194,7 +224,7 @@ end
 
 function getindex(sol::PseudoSpectralSolution, species::Num)
     name=nameof(species)
-    i = findfirst(s -> nameof(s.val.f)===name, sol.species)
+    i = findfirst(s -> _nameof(s.val)===name, sol.species)
     [vec(u[:,i]) for u in sol.u]
 end
 
@@ -208,11 +238,23 @@ lastindex(sol::PseudoSpectralSolution) = lastindex(sol.u)
 
 successful_retcode(sol::PseudoSpectralSolution) = SciMLBase.successful_retcode(sol.retcode)
 
+
+"""
+    EnsembleProblem(prob::PseudoSpectralProblem, params; output_func=nothing, kwargs...)
+
+Construct an ensemble problem to solve the system in parallel for each of the supplied parameter sets.
+"""
 function EnsembleProblem(prob::PseudoSpectralProblem, params; output_func=nothing, kwargs...)
     prob_func(_prob,ctx) = remake(_prob; p=params[ctx.sim_id], rng=ctx.rng)
     EnsembleProblem(prob; prob_func,output_func, trajectories=length(params), kwargs...)
 end
 
+"""
+    EnsembleProblem(prob::PseudoSpectralProblem; prob_func, output_func=nothing, kwargs...)
+
+Construct an ensemble problem to run the solver in parallel.
+For details see https://docs.sciml.ai/DiffEqDocs/stable/features/ensemble/.
+"""
 function EnsembleProblem(prob::PseudoSpectralProblem; prob_func, output_func=nothing, kwargs...)
     _prob_func(_prob, ctx) = prob_func(prob, ctx).ode_problem
     function _output_func(sol, ctx) 
@@ -230,19 +272,37 @@ mutable struct PseudoSpectralIntegrator
     ss::Float64
 end
 
+"""
+    PseudoSpectralIntegrator(prob::PseudoSpectralProblem; alg=ETDRK4(), kwargs...)
+Initialize an integrator for the problem.
+See https://docs.sciml.ai/DiffEqDocs/stable/basics/integrator/.
+Algorithm defaults to [ETDRK4](https://docs.sciml.ai/DiffEqDocs/stable/api/ordinarydiffeq/semilinear/ExponentialRK/#OrdinaryDiffEqExponentialRK.ETDRK4).
+"""
 function PseudoSpectralIntegrator(prob::PseudoSpectralProblem; alg=ETDRK4(), kwargs...)
     integrator=init(prob.ode_problem, alg; kwargs...)
     PseudoSpectralIntegrator(integrator, prob, Inf)
 end
 
+"""
+    get_sol(integrator::PseudoSpectralIntegrator)
+Return a solution object for the current integrator state.
+"""
 get_sol(integrator::PseudoSpectralIntegrator) = PseudoSpectralSolution(integrator.prob, integrator.integrator.sol)
 
+"""
+    get_u(integrator::PseudoSpectralIntegrator)
+Return solution values at time `t`, stepping the integrator as necessary.
+"""
 function get_u(integrator::PseudoSpectralIntegrator, t) 
     step_to!(integrator, t)
     u = integrator.integrator.sol(t)
     transform(integrator.prob, u)
 end
 
+"""
+    step!(integrator::PseudoSpectralIntegrator, dt=nothing, stop_at_tdt=false)
+Advance the iterator by `dt`.
+"""
 function step!(integrator::PseudoSpectralIntegrator, dt=nothing, stop_at_tdt=false)
     SciMLBase.step!(integrator.integrator, dt, stop_at_tdt)
     if integrator.integrator.sol.retcode == Terminated
@@ -250,16 +310,28 @@ function step!(integrator::PseudoSpectralIntegrator, dt=nothing, stop_at_tdt=fal
     end
 end
 
+"""
+    step_to!(integrator::PseudoSpectralIntegrator, t, stop_at_tdt=false)
+Advance the iterator to time `t`.
+"""
 function step_to!(integrator::PseudoSpectralIntegrator, t, stop_at_tdt=false)
     dt = max(0.0, t - integrator.integrator.t)
     step!(integrator, dt, stop_at_tdt)
 end
 
+"""
+    remake(integrator::PseudoSpectralIntegrator; kwargs...)
+Return a new integrator updated with `remake(integrator.prob; kwargs...)`.
+"""
 function remake(integrator::PseudoSpectralIntegrator; kwargs...)
     prob = remake(integrator.prob; kwargs...)
     PseudoSpectralIntegrator(prob)
 end
 
+"""
+    steady_state_callback(tol=1e-4)
+Callback function to be passed to `solve` to detect steady state. Terminates solver when |uₜ| ≤ `tol`.
+"""
 function steady_state_callback(tol=1e-4)
     condition(u,t,integrator) = isapprox(get_du(integrator), zero(u); atol=tol)
     DiscreteCallback(condition, terminate!)
@@ -270,7 +342,7 @@ end
 "Sort parameters by name."
 sort_variables(p) = sort(p, by=_nameof)
 #_nameof(v) = isspecies(v) ? nameof(v.f) : nameof(v)
-_nameof(v) = try nameof(v); catch e nameof(v.f) end # TODO: Something less hacky.
+_nameof(v) = try nameof(v.f); catch e nameof(v) end # TODO: Something less hacky.
 
 
 "Extract variables from a (possibly nested) collection of expressions and sort them by name."
