@@ -12,13 +12,11 @@
 This package provides a DCT based discretisation for 1D reaction-diffusion PDEs, designed to be used with the exponential time-differencing solvers provided by [OrdinaryDiffEqExponentialRK](https://docs.sciml.ai/DiffEqDocs/stable/api/ordinarydiffeq/semilinear/ExponentialRK/). It supports PDE systems of the form:
 
 
-$$
-` \begin{align*} \mathbf{u}_{t}(x,t) &= \mathbf{D} \mathbf{u}_{xx}(x,t) + \mathbf{f}(\mathbf{u}(x,t)) \\
+$` \begin{align*} \mathbf{u}_{t}(x,t) &= \mathbf{D} \mathbf{u}_{xx}(x,t) + \mathbf{f}(\mathbf{u}(x,t)) \\
   \mathbf{u}(x,0) &= \mathbf{g}(x) \\
   \mathbf{u}_x(0,t) &= a \\
   \mathbf{u}_x(1,t) &= b \\
-\end{align*} `
-$$
+\end{align*} `$
 
 
 For an interactive front-end which integrates with the Catalyst chemical modelling DSL, see [ReactionDiffusion.jl](https://github.com/hiscocklab/ReactionDiffusion.jl).
