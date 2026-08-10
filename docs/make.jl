@@ -3,7 +3,7 @@ using Documenter
 using DocumenterMarkdown
 
 makedocs(
-    modules = [ReactionDiffusion],
+    modules = [PseudoSpectral],
     format = Markdown(),
     pages = ["README.md"],
 )

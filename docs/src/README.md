@@ -16,7 +16,7 @@ For an interactive front-end which integrates with the Catalyst chemical modelli
 
 ## Example - Heat Equation
 PseudoSpectral.jl follows the interface of SciML:
-```
+```@example
 using PseudoSpectral
 using Symbolics: @variables
 using OrdinaryDiffEqExponentialRK: ETDRK4
@@ -34,7 +34,6 @@ prob = PseudoSpectralProblem([U,V], R, D, B, IC, n; p = Dict(Dᵤ=>1.0, Dᵥ=>50
 sol = solve(prob, ETDRK4(); tspan=(0.0,200.0), dt=dt)
 plot(sol[U][end]; xlabel="x", ylabel="U", legend=false, title="Schnakenberg Pattern")
 ```
-![Schnakenberg system](schnakenberg.png)
 
 ## API
 
@@ -59,5 +58,5 @@ This work is supported by ERC grant SELFORG-101161207, and UK Research and Innov
 
 *Funded by the European Union. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them*
 
-![ERC_logo](docs/src/assets/LOGO_ERC-FLAG_FP.png)
+![ERC_logo](assets/LOGO_ERC-FLAG_FP.png)
 
