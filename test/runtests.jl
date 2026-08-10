@@ -1,6 +1,6 @@
 module PseudoSpectralTest
 
-using PseudoSpectral
+using PseudoSpectralReactionDiffusion
 using Symbolics: @variables
 using OrdinaryDiffEqExponentialRK: ETDRK4
 using Test

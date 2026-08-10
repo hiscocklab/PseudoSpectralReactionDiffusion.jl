@@ -1,4 +1,4 @@
-name = "PseudoSpectral"
+name = "PseudoSpectralReactionDiffusion"
 uuid = "f6475d4d-f43b-4700-b4e1-363d93571312"
 version = "0.1.0"
 authors = ["Hugh Coleman <h.coleman.25@abdn.ac.uk>"]

@@ -1,4 +1,4 @@
-module PseudoSpectral
+module PseudoSpectralReactionDiffusion
 export PseudoSpectralProblem, PseudoSpectralSolution, PseudoSpectralIntegrator, steady_state_callback, x, step!, step_to!, get_sol, get_u
 
 import Base: getindex, eachindex, lastindex

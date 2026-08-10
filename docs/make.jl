@@ -1,15 +1,9 @@
-using PseudoSpectral
+using PseudoSpectralReactionDiffusion
 using Documenter
 using DocumenterMarkdown
 
 makedocs(
-    modules = [PseudoSpectral],
+    modules = [PseudoSpectralReactionDiffusion],
     format = Markdown(),
     pages = ["README.md"],
-)
-
-cp(
-    joinpath(@__DIR__, "build", "README.md"),
-    joinpath(@__DIR__, "..", "README.md"),
-    force=true,
 )

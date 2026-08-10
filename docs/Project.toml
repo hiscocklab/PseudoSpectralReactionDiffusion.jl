@@ -1,4 +1,6 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterMarkdown = "997ab1e6-3595-5248-9280-8efb232c3433"
-PseudoSpectral = "f6475d4d-f43b-4700-b4e1-363d93571312"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+PseudoSpectralReactionDiffusion = "f6475d4d-f43b-4700-b4e1-363d93571312"
+Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
