@@ -8,8 +8,9 @@ import SciMLBase: EnsembleProblem, solve, remake, successful_retcode, DEIntegrat
 export EnsembleProblem, solve, remake, successful_retcode
 
 import SciMLBase
-using SciMLBase: SplitODEProblem, ODEProblem, ODESolution, DiagonalOperator, ODEFunction, update_coefficients!, ReturnCode, DiscreteCallback, terminate!, get_du, init
+using SciMLBase: SplitODEProblem, ODEProblem, ODESolution, ODEFunction, update_coefficients!, ReturnCode, DiscreteCallback, terminate!, get_du, init
 using SciMLBase.ReturnCode: Terminated
+using SciMLOperators: DiagonalOperator
 using OrdinaryDiffEqExponentialRK: ETDRK4
 using FFTW: plan_r2r!, REDFT00, MEASURE, ScaledPlan
 using Symbolics: variable, @variables, Num, sparsejacobian, build_function, substitute, get_variables
