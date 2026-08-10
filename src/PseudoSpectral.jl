@@ -241,28 +241,28 @@ successful_retcode(sol::PseudoSpectralSolution) = SciMLBase.successful_retcode(s
 
 
 """
-    EnsembleProblem(prob::PseudoSpectralProblem, params; output_func=nothing, kwargs...)
+    EnsembleProblem(prob::PseudoSpectralProblem, params; output_func=nothing)
 
 Construct an ensemble problem to solve the system in parallel for each of the supplied parameter sets.
 """
-function EnsembleProblem(prob::PseudoSpectralProblem, params; output_func=nothing, kwargs...)
+function EnsembleProblem(prob::PseudoSpectralProblem, params; output_func=nothing)
     prob_func(_prob,ctx) = remake(_prob; p=params[ctx.sim_id], rng=ctx.rng)
-    EnsembleProblem(prob; prob_func,output_func, trajectories=length(params), kwargs...)
+    EnsembleProblem(prob; prob_func, output_func)
 end
 
 """
-    EnsembleProblem(prob::PseudoSpectralProblem; prob_func, output_func=nothing, kwargs...)
+    EnsembleProblem(prob::PseudoSpectralProblem; prob_func, output_func=nothing)
 
 Construct an ensemble problem to run the solver in parallel.
 For details see https://docs.sciml.ai/DiffEqDocs/stable/features/ensemble/.
 """
-function EnsembleProblem(prob::PseudoSpectralProblem; prob_func, output_func=nothing, kwargs...)
+function EnsembleProblem(prob::PseudoSpectralProblem; prob_func, output_func=nothing)
     _prob_func(_prob, ctx) = prob_func(prob, ctx).ode_problem
     function _output_func(sol, ctx) 
         ps_sol = PseudoSpectralSolution(prob, sol)
         isnothing(output_func) ?  (ps_sol,false) : output_func(ps_sol,ctx)
     end
-    SciMLBase.EnsembleProblem(prob.ode_problem; prob_func=_prob_func, output_func=_output_func, kwargs...)
+    SciMLBase.EnsembleProblem(prob.ode_problem; prob_func=_prob_func, output_func=_output_func)
 end
 
 
