@@ -1,5 +1,5 @@
 module PseudoSpectralReactionDiffusion
-export PseudoSpectralProblem, PseudoSpectralSolution, PseudoSpectralIntegrator, steady_state_callback, x, step!, step_to!, get_sol, get_u
+export PseudoSpectralProblem, PseudoSpectralSolution, PseudoSpectralIntegrator, init, steady_state_callback, x, step!, step_to!, get_sol, get_u
 
 import Base: getindex, eachindex, lastindex
 export getindex, eachindex, lastindex
@@ -8,7 +8,7 @@ import SciMLBase: EnsembleProblem, solve, remake, successful_retcode, DEIntegrat
 export EnsembleProblem, solve, remake, successful_retcode
 
 import SciMLBase
-using SciMLBase: SplitODEProblem, ODEProblem, ODESolution, ODEFunction, update_coefficients!, ReturnCode, DiscreteCallback, terminate!, get_du, init
+using SciMLBase: SplitODEProblem, ODEProblem, ODESolution, ODEFunction, update_coefficients!, ReturnCode, DiscreteCallback, terminate!, get_du
 using SciMLBase.ReturnCode: Terminated
 using SciMLOperators: DiagonalOperator
 using OrdinaryDiffEqExponentialRK: ETDRK4
@@ -279,8 +279,8 @@ Initialize an integrator for the problem.
 See https://docs.sciml.ai/DiffEqDocs/stable/basics/integrator/.
 Algorithm defaults to [ETDRK4](https://docs.sciml.ai/DiffEqDocs/stable/api/ordinarydiffeq/semilinear/ExponentialRK/#OrdinaryDiffEqExponentialRK.ETDRK4).
 """
-function PseudoSpectralIntegrator(prob::PseudoSpectralProblem; alg=ETDRK4(), kwargs...)
-    integrator=init(prob.ode_problem, alg; kwargs...)
+function init(prob::PseudoSpectralProblem; alg=ETDRK4(), dt=0.1, kwargs...)
+    integrator = SciMLBase.init(prob.ode_problem, alg; dt, kwargs...)
     PseudoSpectralIntegrator(integrator, prob, Inf)
 end
 
@@ -343,7 +343,17 @@ end
 "Sort parameters by name."
 sort_variables(p) = sort(p, by=_nameof)
 #_nameof(v) = isspecies(v) ? nameof(v.f) : nameof(v)
-_nameof(v) = try nameof(v.f); catch e nameof(v) end # TODO: Something less hacky.
+function _nameof(v)  # TODO: Something less hacky.
+    try
+        nameof(v.f)
+    catch e
+        try
+            nameof(v)
+        catch
+            nameof(v.val.f)
+        end
+    end
+end
 
 
 "Extract variables from a (possibly nested) collection of expressions and sort them by name."

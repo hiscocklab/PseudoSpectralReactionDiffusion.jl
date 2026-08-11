@@ -38,7 +38,7 @@ plot(sol[U][end]; xlabel="x", ylabel="U", legend=false, title="Schnakenberg Patt
 PseudoSpectralProblem
 PseudoSpectralSolution
 solve
-PseudoSpectralIntegrator
+init
 get_u
 get_sol
 step!
