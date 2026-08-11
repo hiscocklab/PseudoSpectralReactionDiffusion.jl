@@ -224,7 +224,7 @@ end
 
 
 function getindex(sol::PseudoSpectralSolution, species::Num)
-    name=nameof(species)
+    name=_nameof(species)
     i = findfirst(s -> _nameof(s.val)===name, sol.species)
     [vec(u[:,i]) for u in sol.u]
 end
