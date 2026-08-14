@@ -211,11 +211,11 @@ function diffusion_operator(diffusion_rates, ps, n)
     h = 1/(n-1)
 
     ## 2nd order Fourier differentiation coefficients.
-    # For a continuous FT this would be σ² = -(k/2pi h)^2, but corrected for
+    # For a continuous FT this would be σ² = ((h/2) * pi * k)^2, but corrected for
     # the discrete transform this becomes:
-    σ² = @. -(4/h^2) * sin(k*pi/(2*(n-1)))^2
+    σ² = @. ((2/h) * sin((h/2)*pi*k))^2
 
-    λ = vec(σ² * diffusion_rates') |> collect
+    λ = vec(-σ² * diffusion_rates') |> collect
     (f,f!) = build_function(λ, ps; expression=Val{false})
     λ0 = similar(λ, Float64)
     update!(λ,u,p,t) = f!(λ, p.d)
