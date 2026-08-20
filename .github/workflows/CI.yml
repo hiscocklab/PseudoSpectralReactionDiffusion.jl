@@ -1,44 +1,41 @@
 name: CI
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
   push:
     branches:
       - main
-  pull_request:
+    paths-ignore:
+      - 'docs/**'
 
-permissions:
-  contents: read
 
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-
+    name: Julia ${{ matrix.version }} - ${{ matrix.julia-threads }} thread(s) - ${{ github.event_name }}
+    runs-on: ubuntu-latest
+    env:
+      JULIA_NUM_THREADS: ${{ matrix.julia-threads }}
     strategy:
-      fail-fast: false
       matrix:
+        group:
+          - Core
         version:
-          - '1.12'
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
+          - '1' #this will use latest stable v1.x.y version; if break, can go to CI to look at previous successful builds
+        julia-threads:
+          - '1'
 
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.version }}
-
-      - uses: julia-actions/cache@v2
-
-      - name: Instantiate
-        run: julia --project=. -e 'using Pkg; Pkg.instantiate()'
-
-      - name: Test
-        run: julia --project=. -e 'using Pkg; Pkg.test()'
-
+      - uses: julia-actions/cache@v3
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
 
   # docs:
   #   name: Documentation
