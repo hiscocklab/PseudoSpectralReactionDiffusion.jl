@@ -280,7 +280,8 @@ See https://docs.sciml.ai/DiffEqDocs/stable/basics/integrator/.
 Algorithm defaults to [ETDRK4](https://docs.sciml.ai/DiffEqDocs/stable/api/ordinarydiffeq/semilinear/ExponentialRK/#OrdinaryDiffEqExponentialRK.ETDRK4).
 """
 function init(prob::PseudoSpectralProblem; alg=ETDRK4(), kwargs...)
-    integrator = SciMLBase.init(prob.ode_problem, alg; kwargs...)
+    prob = remake(prob; kwargs...)
+    integrator = SciMLBase.init(prob.ode_problem, alg)
     PseudoSpectralIntegrator(integrator, prob, Inf)
 end
 
@@ -326,7 +327,7 @@ Return a new integrator updated with `remake(integrator.prob; kwargs...)`.
 """
 function remake(integrator::PseudoSpectralIntegrator; kwargs...)
     prob = remake(integrator.prob; kwargs...)
-    PseudoSpectralIntegrator(prob)
+    init(prob; alg=integrator.integrator.alg)
 end
 
 """
