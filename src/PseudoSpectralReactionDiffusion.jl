@@ -211,7 +211,7 @@ function diffusion_operator(diffusion_rates, ps, n)
     h = 1/(n-1)
 
     ## 2nd order Fourier differentiation coefficients.
-    # For a continuous FT this would be σ² = ((h/2) * pi * k)^2, but corrected for
+    # For a continuous FT this would be σ² = (pi * k)^2, but corrected for
     # the discrete transform this becomes:
     σ² = @. ((2/h) * sin((h/2)*pi*k))^2
 
@@ -279,8 +279,8 @@ Initialize an integrator for the problem.
 See https://docs.sciml.ai/DiffEqDocs/stable/basics/integrator/.
 Algorithm defaults to [ETDRK4](https://docs.sciml.ai/DiffEqDocs/stable/api/ordinarydiffeq/semilinear/ExponentialRK/#OrdinaryDiffEqExponentialRK.ETDRK4).
 """
-function init(prob::PseudoSpectralProblem; alg=ETDRK4(), dt=0.1, kwargs...)
-    integrator = SciMLBase.init(prob.ode_problem, alg; dt, kwargs...)
+function init(prob::PseudoSpectralProblem; alg=ETDRK4(), kwargs...)
+    integrator = SciMLBase.init(prob.ode_problem, alg; kwargs...)
     PseudoSpectralIntegrator(integrator, prob, Inf)
 end
 
