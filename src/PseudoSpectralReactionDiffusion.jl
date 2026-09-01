@@ -318,7 +318,7 @@ Advance the iterator to time `t`.
 """
 function step_to!(integrator::PseudoSpectralIntegrator, t, stop_at_tdt=false)
     dt = max(0.0, t - integrator.integrator.t)
-    step!(integrator, dt, stop_at_tdt)
+    (dt > 0) && step!(integrator, dt, stop_at_tdt)
 end
 
 """
