@@ -128,7 +128,7 @@ function remake(prob::PseudoSpectralProblem; p=nothing, rng=nothing, kwargs...)
     p = Parameters(w,r,d,ϕ,Δϕ)
     prob.plan * u0
     u0 = vec(u0)
-    update_coefficients!(prob.ode_problem.f.f1.f, nothing, p, nothing) # Set parameter values in diffusion operator.
+    update_coefficients!(prob.ode_problem.f.f1.f, nothing, p, nothing; update=true) # Set parameter values in diffusion operator.
     prob.ode_problem = remake(prob.ode_problem; u0, p, kwargs...) # Set parameter values in SplitODEProblem.
     prob
 end
@@ -218,8 +218,8 @@ function diffusion_operator(diffusion_rates, ps, n)
     λ = vec(-σ² * diffusion_rates') |> collect
     (f,f!) = build_function(λ, ps; expression=Val{false})
     λ0 = similar(λ, Float64)
-    update!(λ,u,p,t) = f!(λ, p.d)
-    DiagonalOperator(λ0; update_func! = update!)
+    update!(λ,u,p,t; update=false) = update && f!(λ, p.d)
+    DiagonalOperator(λ0; update_func! = update!, accepted_kwargs=Val((:update,)))
 end
 
 
