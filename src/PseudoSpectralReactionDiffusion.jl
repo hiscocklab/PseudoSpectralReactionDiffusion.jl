@@ -20,7 +20,8 @@ using Random: default_rng, AbstractRNG
 const x = variable(:x) |> Num
 
  # BC is Nothing for homogeneous for BC or Function for Heterogeneous BC.
- mutable struct PseudoSpectralProblem
+
+struct PseudoSpectralProblem
     ode_problem::ODEProblem
     dims::Tuple{Int,Int}
     species::Vector{Num}
@@ -99,38 +100,49 @@ function PseudoSpectralProblem(species, reaction_rates, diffusion_rates, boundar
 end
 
 """
-    remake(prob::PseudoSpectralProblem; p=nothing, rng=nothing, kwargs...)
+    remake(prob::PseudoSpectralProblem; odeprob=nothing, p=nothing, rng=nothing, kwargs...)
 
 Return a new problem with updated parameters, random number generator, and/or solver options.
 """
-function remake(prob::PseudoSpectralProblem; p=nothing, rng=nothing, kwargs...)
+function remake(prob::PseudoSpectralProblem; odeprob=nothing, p=nothing, rng=nothing, kwargs...)
+    rng = something(rng, copy(prob.rng))
+    odeprob=something(odeprob, prob.ode_problem)
     if isnothing(p)
-        prob.ode_problem = remake(prob.ode_problem; kwargs...)
-        return prob
-    end
-    if !isnothing(rng)
-        prob.rng=rng
-    end
-    r = Float64[p[k] for k in prob.reaction_params]
-    d = Float64[p[k] for k in prob.diffusion_params]
-    b = Float64[p[k] for k in prob.boundary_params]
-    i = Float64[p[k] for k in prob.initial_params]
-
-    w = Matrix{Float64}(undef,prob.dims...) # Allocate working memory for FFTW.
-    u0 = prob.initial_function(i,prob.rng)
-    lf = prob.lifting_function
-    if !isnothing(lf)
-        ϕ, Δϕ = lf(d,b)
-        u0 .-= ϕ
+        odeprob = remake(odeprob; kwargs...)
     else
-        ϕ = Δϕ = Matrix{Float64}(undef,0,0)
+        r = Float64[p[k] for k in prob.reaction_params]
+        d = Float64[p[k] for k in prob.diffusion_params]
+        b = Float64[p[k] for k in prob.boundary_params]
+        i = Float64[p[k] for k in prob.initial_params]
+
+        w = Matrix{Float64}(undef,prob.dims...) # Allocate working memory for FFTW.
+        u0 = prob.initial_function(i, rng)
+        lf = prob.lifting_function
+        if !isnothing(lf)
+            ϕ, Δϕ = lf(d,b)
+            u0 .-= ϕ
+        else
+            ϕ = Δϕ = Matrix{Float64}(undef,0,0)
+        end
+        p = Parameters(w,r,d,ϕ,Δϕ)
+        prob.plan * u0
+        u0 = vec(u0)
+        odeprob = remake(odeprob; u0, p, kwargs...) # Set parameter values in SplitODEProblem.
+        update_coefficients!(odeprob.f.f1.f, nothing, p, nothing; update=true) # Set parameter values in diffusion operator.
     end
-    p = Parameters(w,r,d,ϕ,Δϕ)
-    prob.plan * u0
-    u0 = vec(u0)
-    update_coefficients!(prob.ode_problem.f.f1.f, nothing, p, nothing; update=true) # Set parameter values in diffusion operator.
-    prob.ode_problem = remake(prob.ode_problem; u0, p, kwargs...) # Set parameter values in SplitODEProblem.
-    prob
+    PseudoSpectralProblem(
+        odeprob,
+        prob.dims,
+        prob.species,
+        prob.reaction_params,
+        prob.diffusion_params,
+        prob.boundary_params,
+        prob.initial_params,
+        prob.plan,
+        prob.initial_function,
+        prob.lifting_function,
+        rng
+    )
 end
 
 """
@@ -257,8 +269,11 @@ Construct an ensemble problem to run the solver in parallel.
 For details see https://docs.sciml.ai/DiffEqDocs/stable/features/ensemble/.
 """
 function EnsembleProblem(prob::PseudoSpectralProblem; prob_func, output_func=nothing)
-    _prob_func(_prob, ctx) = prob_func(prob, ctx).ode_problem
-    function _output_func(sol, ctx) 
+    function _prob_func(odeprob, ctx)
+        _prob = remake(prob; odeprob)
+        prob_func(_prob, ctx).ode_problem
+    end
+    function _output_func(sol, ctx)
         ps_sol = PseudoSpectralSolution(prob, sol)
         isnothing(output_func) ?  (ps_sol,false) : output_func(ps_sol,ctx)
     end
