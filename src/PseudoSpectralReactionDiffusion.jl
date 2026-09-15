@@ -274,7 +274,8 @@ function EnsembleProblem(prob::PseudoSpectralProblem; prob_func, output_func=not
         prob_func(_prob, ctx).ode_problem
     end
     function _output_func(sol, ctx)
-        ps_sol = PseudoSpectralSolution(prob, sol)
+        _prob = remake(prob; odeprob=sol.prob)
+        ps_sol = PseudoSpectralSolution(_prob, sol)
         isnothing(output_func) ?  (ps_sol,false) : output_func(ps_sol,ctx)
     end
     SciMLBase.EnsembleProblem(prob.ode_problem; prob_func=_prob_func, output_func=_output_func)
