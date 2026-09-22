@@ -209,6 +209,7 @@ function reaction_operator(species, reaction_rates, rs, plan!, ::Val{BC}) where 
         copyto!(p.u, u)
         plan! * p.u
         BC && (p.u .+= p.ϕ)
+        clamp!(p.u,0.0,Inf)
         f!(du, p.u, p.r)
         BC && (du .+= p.Δϕ)
         plan! * du
