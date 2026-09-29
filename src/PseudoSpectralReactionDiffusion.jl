@@ -78,7 +78,7 @@ PseudoSpectral expects Symbolics.jl expressions as inputs. The special variable 
 - `rng=default_rng()`: Random number generator for noise.
 - `kwargs...`: Keyword arguments passed on to SciML's `solve`. For details see https://docs.sciml.ai/DiffEqDocs/stable/basics/common_solver_opts/.
 """
-function PseudoSpectralProblem(species, reaction_rates, diffusion_rates, boundary_conditions, initial_conditions, num_verts; p=nothing, dt=0.1, noise=1e-4, rng=default_rng(), kwargs...)
+function PseudoSpectralProblem(species, reaction_rates, diffusion_rates, boundary_conditions, initial_conditions, num_verts; p=nothing, dt=0.1, noise=1e-4, dealias=true, rng=default_rng(), kwargs...)
     n = num_verts
     m = length(species)
     
@@ -92,7 +92,7 @@ function PseudoSpectralProblem(species, reaction_rates, diffusion_rates, boundar
     fu0 = make_initial_function(initial_conditions, is, noise, n)
     lf = make_lifting_function(boundary_conditions, diffusion_rates, bs,ds, n)
     
-    R = reaction_operator(species, reaction_rates, rs, plan, Val(!isnothing(lf)))
+    R = reaction_operator(species, reaction_rates, rs, plan, Val(!isnothing(lf)), Val(dealias))
     D = diffusion_operator(diffusion_rates, ds, n)
     odeprob = SplitODEProblem(D, R, vec(u), Inf, nothing; dt, kwargs...)
     prob = PseudoSpectralProblem(odeprob, (n,m), species, rs, ds, bs, is, plan, fu0, lf, rng)
@@ -196,23 +196,25 @@ end
 
 
 "Build function for the reaction component, with `f(v+ϕ) + Δϕ` offset for non-zero-flux BCs."
-function reaction_operator(species, reaction_rates, rs, plan!, ::Val{BC}) where BC
+function reaction_operator(species, reaction_rates, rs, plan!, ::Val{BC}, ::Val{DA}) where {BC, DA}
     n,m = size(plan!)
     @variables u[1:n, 1:m]
     # TODO: Clever things to make only spatially varying parameters expand?
     # Build an nxm matrix of derivatives, substituting reactants for u[i,j] and parameters for p[k,l].
     du = [substitute(expr, Dict([x=>X, zip(species,v)...])) for (v,X) in zip(eachrow(collect(u)), range(0,1,n)), expr in reaction_rates]
     _, f! = build_function(du, u, rs; expression=Val{false})
-    
+    upper = 2*n÷3
     function f̂!(du,u,p,t)
         du = reshape(du,n,m)
         copyto!(p.u, u)
         plan! * p.u
+        DA && p.u[upper:end,:] .= 0.0
         BC && (p.u .+= p.ϕ)
         clamp!(p.u,0.0,Inf)
         f!(du, p.u, p.r)
         BC && (du .+= p.Δϕ)
         plan! * du
+        DA && du[upper:end, :] .= 0.0
         nothing
     end
     ODEFunction(f̂!)

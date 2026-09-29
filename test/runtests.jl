@@ -83,5 +83,19 @@ end
     @test u ≈ exp(-2.0)*cos.(pi*X) rtol=1e-2;
 end
 
+@testset "dealias" begin
+    @variables U,g0,g1,d,a,b
+    R = [0]
+    D = [1/(pi)^2] # Divide by pi^2 for a domain of size pi.
+    n=128
+    dt=0.001
+    B = [0,0]
+    IC = [cos(pi*x)]
+    prob = PseudoSpectralProblem([U], R, D, B, IC, n; dealias=true)
+    sol = solve(prob, ETDRK4(); tspan=(0.0,2.0), dt=dt)
+    @test successful_retcode(sol)
+    @test sol[U][end] ≈ exp(-sol.t[end])*cos.(pi*sol.x) rtol=1e-2;
+end
+
 
 end;
