@@ -208,13 +208,13 @@ function reaction_operator(species, reaction_rates, rs, plan!, ::Val{BC}, ::Val{
         du = reshape(du,n,m)
         copyto!(p.u, u)
         plan! * p.u
-        DA && p.u[upper:end,:] .= 0.0
+        DA && (p.u[upper:end,:] .= 0.0)
         BC && (p.u .+= p.ϕ)
         clamp!(p.u,0.0,Inf)
         f!(du, p.u, p.r)
         BC && (du .+= p.Δϕ)
         plan! * du
-        DA && du[upper:end, :] .= 0.0
+        DA && (du[upper:end, :] .= 0.0)
         nothing
     end
     ODEFunction(f̂!)
