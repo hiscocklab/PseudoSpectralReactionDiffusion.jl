@@ -78,7 +78,7 @@ PseudoSpectral expects Symbolics.jl expressions as inputs. The special variable 
 - `rng=default_rng()`: Random number generator for noise.
 - `kwargs...`: Keyword arguments passed on to SciML's `solve`. For details see https://docs.sciml.ai/DiffEqDocs/stable/basics/common_solver_opts/.
 """
-function PseudoSpectralProblem(species, reaction_rates, diffusion_rates, boundary_conditions, initial_conditions, num_verts; p=nothing, dt=0.1, noise=1e-4, dealias=true, rng=default_rng(), kwargs...)
+function PseudoSpectralProblem(species, reaction_rates, diffusion_rates, boundary_conditions, initial_conditions, num_verts; p=nothing, dt=0.1, noise=1e-4, dealias=false, rng=default_rng(), kwargs...)
     n = num_verts
     m = length(species)
     
