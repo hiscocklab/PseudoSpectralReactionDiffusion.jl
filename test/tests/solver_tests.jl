@@ -58,3 +58,22 @@ end
     @test successful_retcode(sol)
     @test sol[U][end] ≈ exp(-sol.t[end]) * cos.(pi * sol.x) rtol = 1.0e-2
 end
+
+@testset "clamp" begin
+    @variables U
+    n = 16
+
+    # Clamping must not alter solution exp(-t).
+    prob = PseudoSpectralProblem([U], [-U], [0], [0, 0], [1.0], n; noise = 0.0, clamp = true)
+    sol = solve(prob, ETDRK4(); tspan = (0.0, 1.0), dt = 0.001)
+    @test successful_retcode(sol)
+    @test sol[U][end] ≈ fill(exp(-1.0), n) rtol = 1.0e-6
+
+    # Constant removal rate drives U to zero at t = 1; clamping must hold it there.
+    # The rate clamp acts per stage, so the step that crosses zero can overshoot by up to dt.
+    dt = 0.001
+    prob = PseudoSpectralProblem([U], [-1], [0], [0, 0], [1.0], n; noise = 0.0, clamp = true)
+    sol = solve(prob, ETDRK4(); tspan = (0.0, 2.0), dt = dt)
+    @test successful_retcode(sol)
+    @test all(>=(-dt), sol[U][end])
+end

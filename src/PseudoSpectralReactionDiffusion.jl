@@ -245,7 +245,7 @@ function reaction_operator(species, reaction_rates, rs, plan!, ::Val{BC}, ::Val{
         BC && (p.u .+= p.ϕ)
         CL && clamp!(p.u, 0.0, Inf)
         f!(du, p.u, p.r, t)
-        CL && clamp_du!(du, u)
+        CL && clamp_du!(du, p.u)
         BC && (du .+= p.Δϕ)
         plan! * du
         DA && (du[upper:end, :] .= 0.0)
