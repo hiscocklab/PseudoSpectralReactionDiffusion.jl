@@ -2,7 +2,7 @@
 
 
 ![Build Status](https://github.com/hiscocklab/PseudoSpectralReactionDiffusion.jl/actions/workflows/CI.yml/badge.svg)
-
+[![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)](https://github.com/SciML/SciMLStyle)
 
 This package provides a DCT based discretisation for 1D reaction-diffusion PDEs, designed to be used with the exponential time-differencing solvers provided by [OrdinaryDiffEqExponentialRK](https://docs.sciml.ai/DiffEqDocs/stable/api/ordinarydiffeq/semilinear/ExponentialRK/). It supports PDE systems of the form:
 
@@ -30,19 +30,20 @@ PseudoSpectral.jl follows the interface of SciML:
 ```julia
 using PseudoSpectralReactionDiffusion
 using Symbolics: @variables
+using OrdinaryDiffEqExponentialRK: ETDRK4
 using Plots
 
-@variables U,V, Dᵤ, Dᵥ, a, b,L
-R = [a-U+U^2*V, b-U^2*V]
-D = [Dᵤ/L^2, Dᵥ/L^2]
+@variables U, V, Dᵤ, Dᵥ, a, b, L
+R = [a - U + U^2 * V, b - U^2 * V]
+D = [Dᵤ / L^2, Dᵥ / L^2]
 B = [0 0; 0 0]
-IC = [0,0]
-n=128
-dt=0.001
+IC = [0, 0]
+n = 128
+dt = 0.001
 
-prob = PseudoSpectralProblem([U,V], R, D, B, IC, n; p = Dict(Dᵤ=>1.0, Dᵥ=>50.0, a=>0.2, b=>2.0, L=>50.0))
-sol = solve(prob; tspan=(0.0,200.0), dt=dt)
-plot(sol[U][end]; xlabel="x", ylabel="U", legend=false, title="Schnakenberg Pattern")
+prob = PseudoSpectralProblem([U, V], R, D, B, IC, n; p = Dict(Dᵤ => 1.0, Dᵥ => 50.0, a => 0.2, b => 2.0, L => 50.0))
+sol = solve(prob, ETDRK4(); tspan = (0.0, 200.0), dt = dt)
+plot(sol[U][end]; xlabel = "x", ylabel = "U", legend = false, title = "Schnakenberg Pattern")
 ```
 
 ![Schnakenberg system plot](schnakenberg.png)
