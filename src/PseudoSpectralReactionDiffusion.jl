@@ -1,5 +1,5 @@
 module PseudoSpectralReactionDiffusion
-export PseudoSpectralProblem, PseudoSpectralSolution, PseudoSpectralIntegrator, init, steady_state_callback, x, step!, step_to!, get_sol, get_u
+export PseudoSpectralProblem, PseudoSpectralSolution, PseudoSpectralIntegrator, init, steady_state_callback, x, t, step!, step_to!, get_sol, get_u
 
 import Base: getindex, eachindex, lastindex
 export getindex, eachindex, lastindex
@@ -18,6 +18,9 @@ using Random: default_rng, AbstractRNG
 
 "Spatial variable x∈[0,1]."
 const x = variable(:x) |> Num
+
+"Time variable."
+const t = variable(:t) |> Num
 
  # BC is Nothing for homogeneous for BC or Function for Heterogeneous BC.
 
@@ -65,7 +68,7 @@ end
 Construct a PsuedoSpectralProblem object representing a reaction diffusion system of the form uₓₓ(x,t) = Duₜ(x,t) + f(u(x,t)).
 
 # Arguments
-PseudoSpectral expects Symbolics.jl expressions as inputs. The special variable 'x' ∈ [0,1] represents the spatial coordinate. Any variables other than 'x' and those supplied in `species` will be interpreted as parameters.
+PseudoSpectral expects Symbolics.jl expressions as inputs. The special variables 'x' ∈ [0,1] and 't' represent the spatial coordinate and time respectively. Any variables other than 'x' and 't' and those supplied in `species` will be interpreted as parameters.
 
 - `species`: Vector of variables corresponding to the components of u.
 - `reaction_rates`: Vector of expressions representing f(u).
@@ -83,7 +86,22 @@ function PseudoSpectralProblem(species, reaction_rates, diffusion_rates, boundar
     m = length(species)
     
     # Collect parameter symbols. 
-    rs, ds, bs, is = (setdiff(collect_variables(exprs), x, species) for exprs in (reaction_rates, diffusion_rates, vec(boundary_conditions), initial_conditions))
+
+    # Check our magic symbols x and t aren't where they shouldn't be:
+
+    # Symbolic `in` returns a symbolic expression rather than a Bool, so compare with isequal.
+    any(isequal(x), species) && throw(ArgumentError("The spatial variable x cannot be used to denote a species."))
+    any(isequal(t), species) && throw(ArgumentError("The time variable t cannot be used to denote a species."))
+
+    any(isequal(t), collect_variables(diffusion_rates)) && throw(ArgumentError("Time-dependent diffusion is not yet supported!"))
+    any(isequal(t), collect_variables(vec(boundary_conditions))) && throw(ArgumentError("Time-dependent boundary conditions are not yet supported!"))
+    any(isequal(t), collect_variables(initial_conditions)) && throw(ArgumentError("Time-dependent initial conditions are not yet supported!"))
+
+    rs = setdiff(collect_variables(reaction_rates), x, species, t)
+    ds = setdiff(collect_variables(diffusion_rates), x, species)
+    bs = setdiff(collect_variables(vec(boundary_conditions)), x, species)
+    is = setdiff(collect_variables(initial_conditions), x, species)
+
     p = something(p, Dict(q => 0 for q in union(rs,ds,bs,is)))
 
     u = Matrix{Float64}(undef, n, m)
@@ -105,11 +123,23 @@ end
 Return a new problem with updated parameters, random number generator, and/or solver options.
 """
 function remake(prob::PseudoSpectralProblem; odeprob=nothing, p=nothing, rng=nothing, kwargs...)
+   
     rng = something(rng, copy(prob.rng))
     odeprob=something(odeprob, prob.ode_problem)
+
     if isnothing(p)
         odeprob = remake(odeprob; kwargs...)
     else
+        # check that magic symbols aren't leaking into parameters here
+
+        if haskey(p, x)
+            throw(ArgumentError("Parameters cannot contain the spatial variable 'x'."))
+        end
+
+        if haskey(p, t)
+            throw(ArgumentError("Parameters cannot contain the time variable 't'."))
+        end
+
         r = Float64[p[k] for k in prob.reaction_params]
         d = Float64[p[k] for k in prob.diffusion_params]
         b = Float64[p[k] for k in prob.boundary_params]
@@ -202,7 +232,7 @@ function reaction_operator(species, reaction_rates, rs, plan!, ::Val{BC}, ::Val{
     # TODO: Clever things to make only spatially varying parameters expand?
     # Build an nxm matrix of derivatives, substituting reactants for u[i,j] and parameters for p[k,l].
     du = [substitute(expr, Dict([x=>X, zip(species,v)...])) for (v,X) in zip(eachrow(collect(u)), range(0,1,n)), expr in reaction_rates]
-    _, f! = build_function(du, u, rs; expression=Val{false})
+    _, f! = build_function(du, u, rs, t; expression=Val{false})
     upper = 2*n÷3
     function f̂!(du,u,p,t)
         du = reshape(du,n,m)
@@ -211,7 +241,7 @@ function reaction_operator(species, reaction_rates, rs, plan!, ::Val{BC}, ::Val{
         DA && (p.u[upper:end,:] .= 0.0)
         BC && (p.u .+= p.ϕ)
         CL && clamp!(p.u,0.0,Inf)
-        f!(du, p.u, p.r)
+        f!(du, p.u, p.r, t)
         CL && clamp_du!(du,u)
         p.u .== 0
         BC && (du .+= p.Δϕ)
