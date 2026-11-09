@@ -9,7 +9,7 @@ using SciMLBase.ReturnCode: Terminated
 using SciMLOperators: DiagonalOperator
 using OrdinaryDiffEqExponentialRK: ETDRK4
 using FFTW: plan_r2r!, REDFT00, MEASURE, ScaledPlan
-using Symbolics: variable, @variables, Num, sparsejacobian, build_function, substitute, get_variables
+using Symbolics: variable, @variables, Num, build_function, substitute, get_variables
 using Random: default_rng, AbstractRNG
 
 export PseudoSpectralProblem, PseudoSpectralSolution, PseudoSpectralIntegrator, init, steady_state_callback, x, t, step!, step_to!, get_sol, get_u
@@ -73,11 +73,14 @@ PseudoSpectral expects Symbolics.jl expressions as inputs. The special variables
 - `species`: Vector of variables corresponding to the components of u.
 - `reaction_rates`: Vector of expressions representing f(u).
 - `diffusion_rates`: Vector of Expressions representing diag(D).
-- `boundary_conditions`: 2xn matrix of expressions representing Neumann boundary conditions. The two rows correspond to uₓ at the left and right boundaries.
-- `initial_conditions`: Vector of expressions representing u(x,0).
+- `boundary_conditions`: 2 x n matrix of expressions representing Neumann boundary conditions. The two rows correspond to uₓ at the left and right boundaries.
+- `initial_conditions`: Vector of expressions representing u(x, 0).
 - `num_verts`: Number of points in spatial discretisation.
 - `p=nothing`: Dictionary associating parameters with numerical values.
+- `dt=0.1`: Time-step for the solver.
 - `noise=1e-4`: Guassian noise with σ²=`noise` is added to the initial conditions.
+- dealias=false: Dealis result.
+- clamp=false: Clamp concentrations so that they're non-negative.
 - `rng=default_rng()`: Random number generator for noise.
 - `kwargs...`: Keyword arguments passed on to SciML's `solve`. For details see https://docs.sciml.ai/DiffEqDocs/stable/basics/common_solver_opts/.
 """
@@ -243,7 +246,6 @@ function reaction_operator(species, reaction_rates, rs, plan!, ::Val{BC}, ::Val{
         CL && clamp!(p.u, 0.0, Inf)
         f!(du, p.u, p.r, t)
         CL && clamp_du!(du, u)
-        p.u .== 0
         BC && (du .+= p.Δϕ)
         plan! * du
         DA && (du[upper:end, :] .= 0.0)
