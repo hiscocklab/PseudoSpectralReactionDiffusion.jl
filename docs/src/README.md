@@ -1,7 +1,7 @@
 # PseudoSpectral.jl
 
 [![Build Status](https://github.com/hiscocklab/PseudoSpectral.jl/actions/workflows/CI.yml/badge.svg?branch=master)](https://github.com/twhiscock/ReactionDiffusion.jl/actions/workflows/CI.yml?query=branch%3Amaster)
-
+[![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)](https://github.com/SciML/SciMLStyle)
 This package provides a DCT based discretisation for 1D reaction-diffusion PDEs, designed to be used with the exponential time-differencing solvers provided by [OrdinaryDiffEqExponentialRK](https://docs.sciml.ai/DiffEqDocs/stable/api/ordinarydiffeq/semilinear/ExponentialRK/). It supports PDE systems of the form:
 
 $` \begin{align*} \mathbf{u}_{t}(x,t) &= \mathbf{D} \mathbf{u}_{xx}(x,t) + \mathbf{f}(\mathbf{u}(x,t)) \\
